@@ -2,6 +2,9 @@ import streamlit as st
 import os
 import tempfile
 import traceback
+import subprocess
+import sys
+
 from pii_redactor import DocumentRedactor, PIIDetector, PIIReplacer
 
 st.set_page_config(page_title="PII Redactor", page_icon="🕵️‍♂️")
@@ -28,13 +31,17 @@ if uploaded_file is not None:
                 try:
                     detector = PIIDetector(use_ner=True)
                 except OSError:
-                    st.warning("NER Model not found. Falling back to Regex and Dictionary only.")
-                    detector = PIIDetector(use_ner=False)
+                    st.info("Downloading spaCy NER model for the first time... this may take a minute.")
+                    subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_lg"])
+                    detector = PIIDetector(use_ner=True)
                 
                 # Process
                 entities = detector.detect_all(full_text)
+                
                 replacer = PIIReplacer(seed=42)
-                replacement_map = replacer.create_replacements(entities)
+                replacement_map = {}
+                for ent in entities:
+                    replacement_map[ent.text] = replacer.get_replacement(ent)
                 
                 redactor.apply_replacements(replacement_map)
                 redactor.save(temp_out_path)
