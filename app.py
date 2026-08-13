@@ -1,7 +1,8 @@
 import streamlit as st
 import os
 import tempfile
-from pii_redactor import PIIRedactor, DocumentReplacer, RegexDetector, NERDetector, DictionaryDetector
+import traceback
+from pii_redactor import DocumentRedactor, PIIDetector, PIIReplacer
 
 st.set_page_config(page_title="PII Redactor", page_icon="🕵️‍♂️")
 
@@ -13,7 +14,6 @@ uploaded_file = st.file_uploader("Choose a DOCX file", type="docx")
 if uploaded_file is not None:
     if st.button("Redact Document"):
         with st.spinner("Redacting..."):
-            # Save uploaded file to temp file
             with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as temp_in:
                 temp_in.write(uploaded_file.read())
                 temp_in_path = temp_in.name
@@ -21,20 +21,21 @@ if uploaded_file is not None:
             temp_out_path = temp_in_path.replace(".docx", "_redacted.docx")
             
             try:
-                # Initialize redactor (similar to main block in pii_redactor.py)
-                redactor = PIIRedactor(temp_in_path)
-                redactor.add_detector(RegexDetector())
+                # Initialize redactor
+                redactor = DocumentRedactor(temp_in_path)
+                full_text = redactor.get_full_text()
+                
                 try:
-                    redactor.add_detector(NERDetector())
-                except Exception as e:
+                    detector = PIIDetector(use_ner=True)
+                except OSError:
                     st.warning("NER Model not found. Falling back to Regex and Dictionary only.")
-                redactor.add_detector(DictionaryDetector())
+                    detector = PIIDetector(use_ner=False)
                 
                 # Process
-                full_text = redactor.extract_text()
-                entities = redactor.detect_all(full_text)
-                replacer = DocumentReplacer()
+                entities = detector.detect_all(full_text)
+                replacer = PIIReplacer(seed=42)
                 replacement_map = replacer.create_replacements(entities)
+                
                 redactor.apply_replacements(replacement_map)
                 redactor.save(temp_out_path)
                 
@@ -50,9 +51,16 @@ if uploaded_file is not None:
                     )
             except Exception as e:
                 st.error(f"An error occurred: {e}")
+                st.code(traceback.format_exc())
             finally:
                 # Cleanup
                 if os.path.exists(temp_in_path):
-                    os.remove(temp_in_path)
+                    try:
+                        os.remove(temp_in_path)
+                    except:
+                        pass
                 if os.path.exists(temp_out_path):
-                    os.remove(temp_out_path)
+                    try:
+                        os.remove(temp_out_path)
+                    except:
+                        pass
