@@ -2,8 +2,6 @@ import streamlit as st
 import os
 import tempfile
 import traceback
-import subprocess
-import sys
 
 from pii_redactor import DocumentRedactor, PIIDetector, PIIReplacer
 
@@ -31,9 +29,8 @@ if uploaded_file is not None:
                 try:
                     detector = PIIDetector(use_ner=True)
                 except OSError:
-                    st.info("Downloading spaCy NER model for the first time... this may take a minute.")
-                    subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_lg"])
-                    detector = PIIDetector(use_ner=True)
+                    st.warning("NER Model not found. Falling back to Regex and Dictionary only.")
+                    detector = PIIDetector(use_ner=False)
                 
                 # Process
                 entities = detector.detect_all(full_text)
