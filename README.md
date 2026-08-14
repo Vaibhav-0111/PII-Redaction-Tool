@@ -16,6 +16,8 @@ A Python script that reads a DOCX document (Red Herring Prospectus) and produces
 
 **Fake Replacement via Faker** — each detected PII entity is replaced with a realistic fake alternative (not just `[REDACTED]`). The mapping is deterministic: the same entity always maps to the same fake value throughout the document, preserving readability.
 
+
+
 ## PII Types Detected
 
 - ✅ **Full names** — via spaCy NER + curated dictionary
